@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+ 
+<hibernate-mapping>
+    <class name="com.rso.common.dao.BandwidthUtil" table="BANDWIDTHUTIL" catalog="capacityplanning">
+        <id name="id" type="java.lang.Integer">
+            <column name="ID" />
+            <generator class="identity" />
+        </id>
+        <property name="serverName" type="string">
+            <column name="SERVERNAME" length="20"  />
+        </property>
+        <property name="serverGroup" type="string">
+            <column name="serverGroup" length="20"  />
+        </property>
+        <property name="year" type="integer">
+            <column name="year" length="11" />
+        </property>
+        <property name="month" type="string">
+            <column name="month" length="15" />
+        </property>
+        <property name="monthNum" type="integer">
+            <column name="month_num" length="2"/>
+        </property>
+        <property name="requests" type="double">
+            <column name="requests" length="10" />
+        </property>
+        <property name="bandwithUsed" type="double">
+            <column name="bandwithUsed" length="5"/>
+        </property>
+        <property name="avg" type="double">
+            <column name="avg" length="10" />
+        </property>        
+    </class>
+</hibernate-mapping>

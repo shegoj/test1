@@ -1,0 +1,254 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+
+public class QueryTasks {
+
+    // JDBC driver name and database URL
+     static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
+     static final String DB_URL = "jdbc:mysql://10.12.192.178/capacityplanning";// "jdbc:msql://10.12.192.178/capacityplanning";
+
+     // atabase credentials
+     static final String USER = "testUser";
+     static final String PASS = "testUser";
+
+     public static void getStatus() {
+     Connection conn = null;
+     Statement stmt = null;
+     try{
+
+        String sql;
+        sql = "select server,app ,status from APP_STATUS where lower(status) in ('stopping', 'starting');";
+        
+        ResultSet rs = (ResultSet) queryDB(sql,conn, stmt).get(0);
+
+        //STEP 5: Extract data from result set
+        while(rs.next()){
+
+           String first = rs.getString("server").toLowerCase();
+           String last = rs.getString("app").trim().replaceAll(" ", "_").toLowerCase();
+           String status = rs.getString("status").toLowerCase();
+
+           //Display values
+
+           System.out.println(first + "," +  last + "," + status);
+          // System.out.println(", Last: " + last);
+        }
+
+     }catch(SQLException se){
+        //Handle errors for JDBC
+        se.printStackTrace();
+     }catch(Exception e){
+        //Handle errors for Class.forName
+        e.printStackTrace();
+     }finally{
+        //finally block used to close resources
+        try{
+           if(stmt!=null)
+              stmt.close();
+        }catch(SQLException se2){
+        }// nothing we can do
+        try{
+           if(conn!=null)
+              conn.close();
+        }catch(SQLException se){
+           se.printStackTrace();
+        }//end finally try
+     }//end try
+     //System.out.println("Goodbye!");
+  }//end main
+     
+     public static void setStatus(String filename) {
+    	 BufferedReader br = null;
+	     Connection conn = null;
+	     Statement stmt = null;
+    	 
+ 		try {
+  
+ 			String sCurrentLine;
+  
+ 			br = new BufferedReader(new FileReader(filename));
+  
+ 			while ((sCurrentLine = br.readLine()) != null) {
+ 				String data [] = sCurrentLine.split(",");
+ 				 if (data.length !=3)
+ 					 return;	
+ 				 
+ 				 String server = data [0].toUpperCase().trim();
+ 				 String app = data [1].toUpperCase().trim();
+ 				 String status = data [2].trim();
+ 				 
+ 				 // check the record exists in the database
+ 				 String sql = "select server from APP_STATUS where upper(server) ='" + server + "' and upper(app) ='" + app + "'";
+ 				 String updateSQl = "update APP_STATUS SET server = '" + server + "' , status ='" + status + "' where upper(server) ='" + server + "' and upper(app) ='" + app + "'";
+ 				 String insertSQL = "INSERT INTO  APP_STATUS ( server, app, status) VALUES ('" + server + "', '" + app  + "' ,'" + status + "')"; 
+ 			     try
+ 			     {
+ 			    	 ArrayList dataInfo = queryDB(sql,conn, stmt);
+ 			    	 ResultSet rs = (ResultSet) dataInfo.get(0);
+ 			    	 stmt =  (Statement)dataInfo.get(1);
+ 			    	 conn = (Connection) dataInfo.get(2);
+ 			    	 
+ 			    	 System.out.println("query is " + sql);
+ 			    	 
+ 			    	 if(!rs.next()) // no record found
+ 			    	 {
+ 			    		 System.out.println(insertSQL);
+ 			    		 stmt.executeUpdate(insertSQL);
+ 			    	 }
+ 			    	 else
+ 			    	 {
+ 			    		 System.out.println(updateSQl);
+ 			    		 stmt.executeUpdate(updateSQl); // update record	    		 
+ 			    	 }
+
+ 
+ 			     }
+ 			 catch(SQLException se){
+ 		        //Handle errors for JDBC
+ 		        se.printStackTrace();
+ 		     }catch(Exception e){
+ 		        //Handle errors for Class.forName
+ 		        e.printStackTrace();
+ 		     }
+ 				 
+ 			}
+  
+ 		} catch (IOException e) {
+ 			e.printStackTrace();
+ 		} finally {
+ 			try {
+ 				if (br != null)br.close();
+ 			} catch (IOException ex) {
+ 				ex.printStackTrace();
+ 			}
+ 			
+ 	        //finally block used to close resources
+ 	        try{
+ 	           if(stmt!=null)
+ 	              stmt.close();
+ 	        }catch(SQLException se2){
+ 	        }// nothing we can do
+ 	        try{
+ 	           if(conn!=null)
+ 	              conn.close();
+ 	        }catch(SQLException se){
+ 	           se.printStackTrace();
+ 	        }
+ 		}
+     }
+     
+     public static void updateStatus (String server, String app, String status) {
+	     Connection conn = null;
+	     Statement stmt = null;
+    	 
+ 		try {
+   
+ 				 server = server.toUpperCase().trim();
+ 				 app = app.toUpperCase().trim();
+ 				 status = status.toLowerCase().trim();
+ 				 
+ 				 if (status.compareTo("stopping") == 0)
+ 					 status = "down";
+ 				 else
+ 					 status = "running";
+ 				 
+ 				 // check the record exists in the database
+ 				 String sql = "select server from APP_STATUS where upper(server) ='" + server + "' and upper(app) ='" + app + "'";
+ 				 String updateSQl = "update APP_STATUS SET server = '" + server + "' , status ='" + status + "' where upper(server) ='" + server + "' and upper(app) ='" + app + "'";
+ 			     try
+ 			     {
+ 			    	 ArrayList dataInfo = queryDB(sql,conn, stmt);
+ 			    	 ResultSet rs = (ResultSet) dataInfo.get(0);
+ 			    	 stmt =  (Statement)dataInfo.get(1);
+ 			    	 conn = (Connection) dataInfo.get(2);
+ 			    	 
+ 			    	 System.out.println("query is " + sql);
+ 			    	 
+ 			    	 if(rs.next()) // record found
+ 			    	 {
+ 			    		 System.out.println(updateSQl);
+ 			    		 stmt.executeUpdate(updateSQl); // update record	    		 
+ 			    	 }
+
+ 
+ 			     }
+ 			 catch(SQLException se){
+ 		        //Handle errors for JDBC
+ 		        se.printStackTrace();
+ 		     }catch(Exception e){
+ 		        //Handle errors for Class.forName
+ 		        e.printStackTrace();
+ 		     }
+
+  
+ 		}  finally {
+ 			//finally block used to close resources
+ 	        try{
+ 	           if(stmt!=null)
+ 	              stmt.close();
+ 	        }catch(SQLException se2){
+ 	        }// nothing we can do
+ 	        try{
+ 	           if(conn!=null)
+ 	              conn.close();
+ 	        }catch(SQLException se){
+ 	           se.printStackTrace();
+ 	        }
+ 		}
+     }
+     
+     public static void main (String args[])
+     {
+    	if  ( args[0].compareTo("s") == 0) // in set state
+    	{
+    		// now get the file name where the status should be loaded from into the database
+    		String filename = args[1];
+    		setStatus(filename);	
+    	}
+    	else if (args[0].compareTo("g") == 0)  // get status from database and write to a file
+    	{
+			    getStatus(); // spool out data of app to be started or stopped.
+		}
+    	else if (args[0].compareTo("u") == 0)  // update one record in the database...
+    	{
+    		updateStatus(args[1], args[2], args[3]);
+    	}
+    	 
+
+     }
+     
+     private static ArrayList queryDB (String sql, Connection conn , Statement stmt) throws Exception
+     {
+
+        //STEP 2: Register JDBC driver
+        Class.forName("com.mysql.jdbc.Driver");
+
+        //STEP 3: Open a connection
+        //System.out.println("Connecting to database...");
+        if (conn == null)
+        	conn = DriverManager.getConnection(DB_URL,USER,PASS);
+
+        //STEP 4: Execute a query
+       // System.out.println("Creating statement...");
+       if (stmt == null) 
+    	   stmt = conn.createStatement();
+
+        ResultSet rs = stmt.executeQuery(sql);
+        
+        ArrayList conInfo = new ArrayList();
+        conInfo.add (rs);
+        conInfo.add(stmt);
+        conInfo.add(conn);
+        
+        return conInfo;
+     }
+
+  }

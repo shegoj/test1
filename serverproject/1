@@ -1,0 +1,13 @@
+#!/bin/bash
+#################################################
+# script forwards uptime message request to a server
+####################################################
+
+serverName=$1
+#ssh m186742@167.68.246.57 '/home/M186742/TOOLS/scripts/serverScripts/jmpServerUptime $serverName;exit'
+
+command=`echo "/home/M186742/TOOLS/scripts/serverScripts/jmpServerUptime $serverName;exit"`
+fcommand=`echo "'$command'"`
+echo $fcommand;
+#ssh m186742@167.68.246.57 $fcommand
+

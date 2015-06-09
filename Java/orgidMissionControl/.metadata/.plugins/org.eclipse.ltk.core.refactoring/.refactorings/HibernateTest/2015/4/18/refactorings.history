@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Move element &apos;Box.java&apos; to &apos;MissonControl/src/com.rso.common.dao&apos;&#x0D;&#x0A;- Original project: &apos;HibernateTest&apos;&#x0D;&#x0A;- Destination element: &apos;MissonControl/src/com.rso.common.dao&apos;&#x0D;&#x0A;- Original element: &apos;Box.java&apos;&#x0D;&#x0A;- Update references to refactored element" description="Move compilation unit" destination="=MissonControl/src&lt;com.rso.common.dao" element1="/src\/main\/java&lt;{Box.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.move" policy="org.eclipse.jdt.ui.moveResources" qualified="false" references="true" stamp="1430306564099" units="1" version="1.0"/>
+</session>

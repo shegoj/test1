@@ -1,0 +1,193 @@
+package com.rso.gt.frontend.frames;
+
+import java.awt.Color;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.swing.JButton;
+import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
+
+import com.rso.gt.frontend.Helper;
+import com.rso.gt.frontend.frames.adapters.ExecutionButtons;
+import com.rso.gt.frontend.frames.adapters.WindowInternalFrameAdapter;
+import com.rso.gt.server.def.ServerInt;
+
+/* Used by InternalFrameDemo.java. */
+public class MyInternalFrame extends JInternalFrame {
+    static int openFrameCount = 0;
+    static final int xOffset = 100, yOffset = 100;
+    static final int FRAME_WIDTH = 700;
+    static final int FRAME_HEIGHT = 120;
+    
+    
+    HashMap<String, JInternalFrame> frames;
+    final String title;
+    
+    public ORGIDPanel col;
+    ServerInt server;
+
+    public MyInternalFrame(HashMap<String, JInternalFrame> frames, String title) {
+        super("", 
+              false, //resizable
+              true, //closable
+              true, //maximizable
+              true);//iconifiable
+        
+        this.frames = frames;
+        this.title = title;
+        
+        String [] treePathText = title.split(",");
+        
+        // extract server info to get frame title and other information relating to the server
+        String serverName = treePathText[2].trim();
+        serverName = Helper.getServerNameFromTreeLabel(title);//serverName.substring(0,serverName.length()-1);
+        
+        server = Helper.getServer(serverName);
+        //set treeInfo
+        server.setTreeInfo(title);
+        
+        int  numOfServices = server.getServices().size();
+        
+        if (numOfServices == 1 )
+        	numOfServices = 2;
+        
+        frames.put(title, this);
+        
+        // set size
+        setSize(FRAME_WIDTH, numOfServices * FRAME_HEIGHT);
+        
+        //Set the window's location.
+        setLocation(xOffset*openFrameCount, yOffset*openFrameCount); 
+        
+        // set listener
+        addInternalFrameListener(new WindowInternalFrameAdapter(frames,title));
+        
+        // set Title
+        setTitle(treePathText[1] + ": " + treePathText[2]);
+        
+
+        col = new ORGIDPanel(serverName);
+        this.add(col);
+        
+       // if (Helper.offlines.indexOf(serverName) > -1 || Helper.checked.indexOf(serverName) < 0) // only display if it
+        	setVisible(false);
+       // else 
+        //	setVisible(true);
+        	
+        	
+    }
+    
+    /**
+     * Refresh status of controls based on information obtain from Proxy server
+     */
+    public void refreshControls () {
+    	List <String> info = server.getStatus();
+
+    	
+    	System.out.println(server.getServerName() + " has info " + info.size());
+    	if (info != null && info.size() > 0) 
+    	{
+    		
+    		Map  <String, List<Object>> controls = col.getControls();
+			ArrayList onbuttons = (ArrayList) controls.get("startButtons");
+			ArrayList offbuttons = (ArrayList) controls.get("stopButtons");
+			ArrayList <JLabel> lbl = (ArrayList ) controls.get("statusLabel");
+			ArrayList<JLabel> lblservices = (ArrayList) controls.get("services");
+			
+    		// update start buttons...
+    		for (int i = 0; i < info.size() ;++ i) 
+    		{			
+        		String temp[] = info.get(i).split(":");
+            	String serviceName = temp[0];
+            	String serviceStatus = temp[1];
+    			
+            	JLabel  lblservice  = (JLabel) lblservices.get(i);
+            	lblservice.setText(serviceName);
+            	
+        		JButton but1 =(JButton) onbuttons.get(i);
+        		JButton but2 =(JButton) offbuttons.get(i);
+				JLabel  lblInfo =(JLabel) lbl.get(i);
+            	
+    			System.out.println(serviceName + "shegoj:: setting control " + (serviceStatus ));
+    			switch (serviceStatus) 
+    			{
+					case "RUNNING":
+						updateControls(Color.GREEN, Helper.APP_STATUS.RUNNING.toString(), but1, but2, lblInfo, false, true, serviceName);
+						break;
+	
+					case "DOWN":
+						updateControls(Color.RED, Helper.APP_STATUS.DOWN.toString(), but1, but2, lblInfo, true, false, serviceName);
+						break;
+						
+					case "STOPPING":
+						updateControls(Color.MAGENTA, Helper.APP_STATUS.STOPPING.toString(), but1, but2, lblInfo, false, false, serviceName);
+						break;
+						
+					case "STARTING":
+						updateControls(Color.YELLOW, Helper.APP_STATUS.STARTING.toString(), but1, but2, lblInfo, false, false, serviceName);
+						break;						
+
+				}
+    		}
+    		
+    		col.adjustTitle (server);
+			col.revalidate();
+			col.repaint();
+
+    	}
+    }
+    
+    private void updateControls (Color color, String status, JButton but1, JButton but2, JLabel lblInfo, boolean but1Status, boolean but2Status, String serviceName)
+    {
+
+		but1.setEnabled(but1Status);
+		but2.setEnabled(but2Status);
+		lblInfo.setText(status + "   ");
+		lblInfo.setBackground(color);
+		lblInfo.setOpaque(true); 
+		
+		
+		try
+		{
+			for (ActionListener a : but1.getActionListeners())
+			{
+				but1.removeActionListener(a);
+			}
+			//but1.removeActionListener(but1.getActionListeners()[0]); // the only action listener configured is button click
+		}
+		
+		catch (Exception ex) {}
+		
+		try
+		{
+			for (ActionListener a : but2.getActionListeners())
+			{
+				but2.removeActionListener(a);
+			}
+		}
+		
+		catch (Exception ex) {}
+		
+	    ExecutionButtons bAction = new ExecutionButtons();
+	    bAction.setService(serviceName);
+	    bAction.SetLocationIP (server.getIPAddress());
+	    bAction.setServerName(server.getServerName());
+	    bAction.setType(ExecutionButtons.START_BUTTON);
+	    but1.addActionListener(bAction);
+		
+	    ExecutionButtons bAction2 = new ExecutionButtons();
+	    bAction2.setService(serviceName);
+	    bAction2.SetLocationIP (server.getIPAddress());
+	    bAction2.setServerName(server.getServerName());
+	    bAction2.setType(ExecutionButtons.STOP_BUTTON);
+	    but2.addActionListener(bAction2);
+    	
+    }
+    
+
+    
+}

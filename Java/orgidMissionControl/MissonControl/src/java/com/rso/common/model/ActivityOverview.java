@@ -1,0 +1,340 @@
+package com.rso.common.model;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import org.jfree.chart.ChartPanel;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.general.DefaultPieDataset;
+
+import com.rso.common.dao.BandwidthUtil;
+import com.rso.common.dao.BrowserInfoDao;
+import com.rso.common.dao.CpuMemoryDao;
+import com.rso.common.dao.UserDocUpload;
+import com.rso.common.dao.GetDataObject;
+import com.rso.common.dao.StorageInfo;
+import com.rso.frontend.charts.BarChart;
+import com.rso.frontend.charts.BarChart3D;
+import com.rso.frontend.charts.LineChart;
+import com.rso.frontend.charts.Meter;
+import com.rso.frontend.charts.PieChart;
+
+/**
+ * 
+ * @author UC186742
+ * 
+ * This class extract the following data and display on the dash-board
+ * 
+ * 1  Current NAS utilisation for the Scheduler
+ * 2  Current ORADATA utilisation for ORGID database
+ * 3  Current Maintenance database utilisation
+ *
+ */
+public class ActivityOverview {
+	
+	private static final String DIRS = "'RTSL NAS', 'ORADATA: ORGID DB', 'ORADATA: Monitiring DB'";
+	//private static final String ORA_DIR = "/grc_rtsl_data2";
+	//private static final String MAIN_DIR = "/grc_rtsl_data3";
+	
+	/*
+	 * method returns NAS,ORADTA, Main DB datafiles utilisation
+	 * */
+	BarChart mainBarChart, downloadInfo ;
+	LineChart lineChart;
+	ChartPanel browserInfo;
+	 
+	
+	DefaultCategoryDataset	mainBarChartdataset;
+	
+	GetDataObject db = new GetDataObject();
+	ArrayList<Meter> meters = new ArrayList<Meter>();
+	
+	public void fetchCurrentStorageInfo () 
+	{
+		
+		//renderBarChartCPU(null,null,null, "");
+		// query the database for data
+		
+		int month = getMonth();
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+		
+		List <StorageInfo> result = (List <StorageInfo>) db.retrieveData("from StorageInfo   b");// where b.monthNum = " + month  + " and b.mount in (" + DIRS + ")" );
+		
+		System.out.println(result.get(0).getMount());
+		for (int i =0 ; i < result.size(); ++i )
+		{
+			meters.add(new Meter(result.get(i).getMount(), "Info", result.get(i).getCurrentVal()/result.get(i).getTotalVal() * 100));
+			
+		}
+	}
+	
+	
+	public int getMeterRecordCount()
+	{
+		fetchCurrentStorageInfo ();
+		return meters.size();
+	}
+	
+	private DefaultCategoryDataset getBandwidthUtilization () 
+	{
+
+    	DefaultCategoryDataset dataset = new DefaultCategoryDataset();;  // instantiate dataset
+    	
+    	/**
+    	 *  sort out the months to select
+    	 */
+    	
+    	StringBuilder queryString  = new StringBuilder();
+    	
+    	int month = getMonth();
+    	
+    	int endMonth = 0;
+    	endMonth = month - 3;
+    	
+    	if ( endMonth < 1)
+    		endMonth = 1;
+    	
+    	// build query
+    	queryString = queryString.append("from BandwidthUtil b where b.monthNum <= '").append(month).append ("'  and b.monthNum >='").append (endMonth).append("' order by b.monthNum");
+    	
+    	List <BandwidthUtil> result = (List <BandwidthUtil>) db.retrieveData(queryString.toString());
+    	
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		System.out.println (result.get(i).getBandwithUsed()+ " Prod " + new Integer(result.get(i).getYear()).toString() );
+    		dataset.setValue( result.get(i).getBandwithUsed(),  result.get(i).getServerName(), result.get(i).getMonth().substring(0, 3));
+    	}	
+		
+		return dataset;
+	}
+	
+	private DefaultCategoryDataset getCPUUtilization  () 
+	{
+
+    	DefaultCategoryDataset dataset = new DefaultCategoryDataset();;  // instantiate dataset
+    	
+    	/**
+    	 *  sort out the months to select
+    	 */
+    	
+    	StringBuilder queryString  = new StringBuilder();
+    	
+    	int month = getMonth();
+    	
+    	int endMonth = 0;
+    	endMonth = month - 3;
+    	
+    	if ( endMonth < 1)
+    		endMonth = 1;
+    	
+    	// build query
+    	queryString = queryString.append("from CpuMemoryDao b where b.resource_type ='CPU' AND b.monthNum <= '").append(month).append ("'  and b.monthNum >='").append (endMonth).append ("' ").append(" and b.serverName in ('C638VBQKYCWEB','C117UDFKYCWEB','C188SXVRTSLAP','C436YDAKYCDB','C798BNFKYCDB','C371VUHRTSLWS','C412SKDRTSLWS') ")
+    			.append("order by b.monthNum");
+    	
+    	List <CpuMemoryDao> result = (List <CpuMemoryDao>) db.retrieveData(queryString.toString());
+    	
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		System.out.println (result.get(i).getVal() + " Prod " + new Integer(result.get(i).getYear()).toString() );
+    		dataset.setValue( result.get(i).getVal(),  result.get(i).getServerName(), result.get(i).getMonth().substring(0, 3));
+    	}	
+		
+		return dataset;
+	}
+	
+	private DefaultCategoryDataset getMemoryUtil  () 
+	{
+
+    	DefaultCategoryDataset dataset = new DefaultCategoryDataset();;  // instantiate dataset
+    	
+    	/**
+    	 *  sort out the months to select
+    	 */
+    	
+    	StringBuilder queryString  = new StringBuilder();
+    	
+    	int month = getMonth();
+    	
+    	int endMonth = 0;
+    	endMonth = month - 3;
+    	
+    	if ( endMonth < 1)
+    		endMonth = 1;
+    	
+    	// build query
+    	queryString = queryString.append("from CpuMemoryDao b where b.resource_type ='MEMORY' AND b.monthNum <= '").append(month).append ("'  and b.monthNum >='").append (endMonth).append ("' ").append(" and b.serverName in ('C638VBQKYCWEB','C117UDFKYCWEB','C188SXVRTSLAP','C436YDAKYCDB','C798BNFKYCDB','C371VUHRTSLWS','C412SKDRTSLWS') ")
+    			.append("order by b.monthNum");
+    	
+    	List <CpuMemoryDao> result = (List <CpuMemoryDao>) db.retrieveData(queryString.toString());
+    	
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		System.out.println (result.get(i).getVal() + " Prod " + new Integer(result.get(i).getYear()).toString() );
+    		dataset.setValue( result.get(i).getVal(),  result.get(i).getServerName(), result.get(i).getMonth().substring(0, 3));
+    	}	
+		
+		return dataset;
+	}
+	
+	public ChartPanel renderBarChart (String title, String xAxis, String yAxis,String type) 
+	{
+		DefaultCategoryDataset data =  null;
+		
+		switch (type)
+		{
+		
+		case "Bandwidth":
+				data = getBandwidthUtilization();
+				break;
+				
+		case "CPU":
+			data = getCPUUtilization();
+			break;		
+		
+		case "Memory":
+			data = getMemoryUtil();
+		}
+		
+		
+		return new BarChart3D().createCategoryChart(title,  xAxis, yAxis, data);
+	}
+	
+	private int getMonth()
+	{
+		  int month = Calendar.getInstance().get(Calendar.MONTH);
+		  return ++month;
+	}
+	
+	public Meter renderMeterChart (int index) 
+	{
+		return meters.get(index);
+	}
+	
+	
+	public ChartPanel renderBarChartCPU (String title, String xAxis, String yAxis,String query)  
+	{
+		DefaultCategoryDataset	mainBarChartdataset = new DefaultCategoryDataset();
+	
+		List <CpuMemoryDao> result = (List <CpuMemoryDao>) db.retrieveData(query);
+			
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		System.out.println (result.get(i).getVal()+ " Prod CPU " + new Integer(result.get(i).getYear()).toString() );
+    		mainBarChartdataset.setValue( result.get(i).getVal(),  result.get(i).getServerName(), result.get(i).getMonth().substring(0, 3));
+    	}
+    	
+    	if (mainBarChart == null)
+    		mainBarChart = new BarChart(title,  xAxis, yAxis, mainBarChartdataset);
+    	else
+    	{
+    		mainBarChart.resetPlot(mainBarChartdataset);
+    		setdataSet(mainBarChartdataset);
+    		
+    	}
+    	
+    	return mainBarChart.getChartPanel();
+	}
+	
+	public ChartPanel renderlineGraph (String title)  {
+			
+		lineChart.resetPlot(getdataSet(),title);
+		
+		return lineChart.getPanel();
+	}
+	
+	private void setdataSet(DefaultCategoryDataset dataset) 
+	{
+		
+		this.mainBarChartdataset = dataset;
+	}
+	
+	private DefaultCategoryDataset getdataSet() 
+	{
+		return this.mainBarChartdataset;
+	}
+	
+	public ChartPanel renderlineGraph (String title, String xAxis, String yAxis, String query)  
+	{
+		DefaultCategoryDataset	mainBarChartdataset = new DefaultCategoryDataset();
+	
+		List <CpuMemoryDao> result = (List <CpuMemoryDao>) db.retrieveData(query);
+			
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		System.out.println (result.get(i).getVal()+ " Prod CPU " + new Integer(result.get(i).getYear()).toString() );
+    		mainBarChartdataset.setValue( result.get(i).getVal(),  result.get(i).getServerName(), result.get(i).getMonth().substring(0, 3));
+    	}
+    	
+    	if (lineChart == null)
+    		lineChart = new LineChart(title,  xAxis, yAxis, mainBarChartdataset);
+    	else
+    		lineChart.resetPlot(mainBarChartdataset, title + " Utilization");
+    	
+    	return lineChart.getPanel();
+	}
+	
+	public ChartPanel renderPieChartBrowserInfo () 
+	{
+		
+    	if (browserInfo != null)
+    		return browserInfo;
+    	
+		StringBuilder queryString  = new StringBuilder();
+    	DefaultPieDataset dataset = new DefaultPieDataset();
+    	
+    	int month = getMonth();
+    	
+    	int endMonth = 0;
+    	endMonth = month - 2;
+    	
+    	if ( endMonth < 1)
+    		endMonth = 1;
+    	
+    	// build query
+    	queryString = queryString.append("from BrowserInfoDao b where b.monthNum = '").append(month).append ("'");
+    	
+    	List <BrowserInfoDao> result = (List <BrowserInfoDao>) db.retrieveData(queryString.toString());
+    	
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		dataset.setValue( result.get(i).getBrowserName() + " " + result.get(i).getValue() + " %",result.get(i).getValue());
+    	}	
+        
+    	browserInfo = new PieChart("BrowserInformation", "", "", dataset).getPanel();
+        return browserInfo; 
+	}
+	
+	public ChartPanel renderBarChartDownloadInfo() 
+	{
+		
+    	if (downloadInfo != null)
+    		return downloadInfo.getChartPanel();
+    	
+		StringBuilder queryString  = new StringBuilder();
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+    	
+    	int month = getMonth();
+    	
+    	int endMonth = 0;
+    	endMonth = month - 2;
+    	
+    	if ( endMonth < 1)
+    		endMonth = 1;
+    	
+    	// build query
+    	queryString = queryString.append("from UserDocUpload b where b.monthNum <= '").append(month).append ("' order by b.monthNum");
+    	
+    	List <UserDocUpload> result = (List <UserDocUpload>) db.retrieveData(queryString.toString());
+    	
+    	for (int i = 0; i < result.size(); ++i) 
+    	{	
+    		dataset.setValue( result.get(i).getValue(),  result.get(i).getMonth(), "");
+    	}	
+        
+    	downloadInfo =  new BarChart("User Upload "  ,  "Month", "Document Upload Count", dataset);
+        return downloadInfo.getChartPanel(); 
+	}
+	
+}
+

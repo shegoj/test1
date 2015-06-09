@@ -1,0 +1,183 @@
+package com.rso.gt.frontend.frames;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Label;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.border.EtchedBorder;
+import javax.swing.border.TitledBorder;
+
+import com.rso.gt.frontend.Helper;
+import com.rso.gt.frontend.frames.adapters.ExecutionButtons;
+import com.rso.gt.server.def.ServerInt;
+
+/**
+ * 
+ * @author Olusegun Oewale
+ * Class implements the Front end for ORGID control
+ *
+ */
+public class ORGIDPanel extends JPanel{
+	
+// Front end for the functionality will be 
+
+
+Box bv = Box.createVerticalBox();
+
+private Map  <String, List<Object>> controls  = new HashMap<String, List<Object>>(); // for storing controls
+
+private ArrayList startButtons = new ArrayList();
+private ArrayList stopButtons = new ArrayList();
+private ArrayList statusLable = new ArrayList();
+private ArrayList lblServices = new ArrayList();
+
+private TitledBorder titleBorder = new TitledBorder(new EtchedBorder(), "Uptime: " );
+
+public  ORGIDPanel (String serverId) {
+	
+	super();
+	
+	controls.put("startButtons", startButtons);
+	controls.put("stopButtons", stopButtons);
+	controls.put("statusLabel", statusLable);
+	controls.put("services", lblServices);
+	
+	//this.functionCount = number;
+	this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+	
+	try 
+	{
+		ServerInt server = Helper.getServer(serverId);
+		//	System.out.println("group Name " + server.getGroupName() );
+		//server.getGroupName()
+		
+		Map <String , String > services = server.getServices();
+		
+		// map based on keys
+        Map<String, String> map = new TreeMap<String, String>(services); 
+        
+        System.out.println("After Sorting:");
+        Set set2 = map.entrySet();
+        Iterator iterator2 = set2.iterator();
+        
+        while(iterator2.hasNext()) 
+        {
+             Map.Entry me2 = (Map.Entry)iterator2.next();
+             System.out.print(me2.getKey() + ": ");
+             System.out.println(me2.getValue());
+			createGTInterface(services.get(me2.getKey()),bv,server );
+		}
+
+	    this.add(BorderLayout.EAST,bv);
+	}
+	catch (Exception ex){ex.printStackTrace();};
+}
+
+public void createGTInterface (String serviceName,Box verticalBox,ServerInt server ) {
+	
+    //this.setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
+    this.setBorder(titleBorder);
+    
+    Box bh2 = Box.createHorizontalBox();
+    
+    JLabel slabel = new JLabel("Service: ");
+	slabel.setFont(new Font("sanserif", Font.BOLD, 6 * 2));
+	bh2.add(slabel);
+	//label.setBackground(Color.GREEN);
+    
+    JLabel label = new JLabel(serviceName);
+	label.setFont(new Font("sanserif", Font.BOLD, 10 + 4 * 2));
+	label.setBackground(Color.LIGHT_GRAY);
+	label.setOpaque(true);
+	bh2.add(label);
+	bh2.add(Box.createRigidArea(new Dimension(20,0)));
+	
+	JLabel label2 = new JLabel("checking status..");
+	label2.setFont(new Font("sanserif", Font.BOLD, 5 + 4 * 2));
+	label2.setBackground(Color.GRAY);
+	label2.setOpaque(true);
+	bh2.add(label2);
+	statusLable.add(label2);
+	
+	bh2.add(Box.createRigidArea(new Dimension(20,0)));
+    lblServices.add(label);
+	
+	JButton b = new JButton("Start ");
+    b.setFont(new Font("sanserif", Font.BOLD, 3 + 4 * 2));
+    
+    startButtons.add(b);
+    
+    // set button action listener and properties
+    ExecutionButtons bAction = new ExecutionButtons();
+    //bAction.setService(serviceName);
+    bAction.SetLocationIP (server.getIPAddress());
+    bAction.setServerName(server.getServerName());
+    bAction.setType(ExecutionButtons.START_BUTTON);
+    
+    b.addActionListener(bAction);
+    
+	bh2.add(b);
+	bh2.add(Box.createRigidArea(new Dimension(20,0)));
+    
+	b = new JButton("Stop ");
+    b.setFont(new Font("sanserif", Font.BOLD, 3 + 4 * 2)); 
+    stopButtons.add(b);
+    
+    ExecutionButtons bAction2 = new ExecutionButtons();
+    bAction2.setService(serviceName);
+    bAction2.SetLocationIP (server.getIPAddress());
+    bAction2.setServerName(server.getServerName());
+    bAction2.setType(ExecutionButtons.STOP_BUTTON);
+    b.addActionListener(bAction2);
+    
+    /*  // set button action listener and properties
+    bAction = new ExecutionButtons();
+    bAction.setService(serviceName);
+    bAction.SetLocationIP (server.getIPAddress());
+    b.addActionListener(bAction);
+    */
+    
+	bh2.add(b);
+	bh2.add(Box.createRigidArea(new Dimension(20,0)));
+    
+	b = new JButton("Refresh ");
+    b.setFont(new Font("sanserif", Font.BOLD, 3 + 4 * 2));
+    b.setEnabled(false);
+	
+	bh2.add(b);
+	bh2.add(Box.createRigidArea(new Dimension(20,0)));
+    
+    bv.add(new Label(""));
+    bv.add(new Label(""));
+    bv.add(new Label(""));
+    bv.add(bh2);
+    
+    System.out.println("bottle:: " + serviceName + " and label " + label.getText() + " button " );
+    
+    }
+
+
+	public Map  <String, List<Object>> getControls () {
+		
+		return controls;
+	}
+	
+	public void adjustTitle (ServerInt server) {
+		
+		titleBorder.setTitle("Uptime: " + server.getUptime());
+	}
+}

@@ -1,0 +1,5 @@
+IE 8 and below	2005	MAY	5	22.00 
+IE 9 and above	MAY	5	22.00 
+Chrome	2005	MAY	5	42.00 
+Firefox	2005	MAY	5	10.00 
+Others	2005	MAY	5	2.00

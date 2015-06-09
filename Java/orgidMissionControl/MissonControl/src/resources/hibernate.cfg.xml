@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <property name="hibernate.bytecode.use_reflection_optimizer">false</property>
+        <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+       <!-- 	<property name="hibernate.connection.password">password</property>  -->
+        <property name="connection.url">jdbc:mysql://10.12.192.178:3306/capacityplanning</property>
+        <property name="hibernate.connection.username">root</property>
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+        <property name="show_sql">false</property>
+        <property name="hbm2ddl.auto">update </property>
+       	<!-- <mapping resource="com/rso/common/dao/BandwidthUtil.hbm.xml"></mapping> -->
+       	<mapping class="com.rso.common.dao.BandwidthUtil" />
+       	<mapping class="com.rso.common.dao.ServerDao" />
+       	<mapping class="com.rso.common.dao.StorageInfo" />
+       	<mapping class="com.rso.common.dao.CpuMemoryDao"/>
+       	<mapping class="com.rso.common.dao.BrowserInfoDao"/>
+       	<mapping class="com.rso.common.dao.UserDocUpload"/>
+       	<mapping class="com.rso.common.dao.ApplicationStatusDao"/>
+       	<!-- <mapping class="com.rso.common.dao.ServerDao" /> -->
+    </session-factory>
+</hibernate-configuration>

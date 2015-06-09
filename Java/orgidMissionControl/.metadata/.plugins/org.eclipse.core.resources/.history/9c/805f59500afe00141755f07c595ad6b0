@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<groups>
+<group name ="QA">
+	<name>QA </name>
+	<server>
+		<IP>10.52.163.4</IP>
+		<name>C098JVPKYCAPP</name>
+	</server>
+	<server>
+		<IP>10.52.163.2</IP>
+		<name>C618XRJKYCAPP</name>
+	</server>
+	<server>
+		<IP>10.52.163.3</IP>
+		<name>C728QNTKYCAPP</name>
+	</server>
+	
+
+</group>
+<group name ="IUAT">
+	<name>IUAT</name>
+	<server>
+		<IP>10.52.156.49</IP>
+		<name>C396DYHKYCWEB</name>
+		<apps> 
+			<app>3</app>
+		</apps>
+	</server>		
+	<server>
+		<IP>10.52.156.52</IP>
+		<name>C229NFZRTSLWS</name>
+		<apps>
+			<app>2</app>
+			<app>5</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.52.156.55</IP>
+		<name>C851HRNKYCAPP</name>
+		<apps> 
+			<app>4</app>
+			<app>1</app>
+		</apps>
+	</server>	
+ </group>
+</groups>

@@ -1,0 +1,114 @@
+﻿<Context/>
+  <!--General Configuration-->
+  <Parameter name="schema" value="GT" override="false" />
+  <!--Onepass configuration-->
+  <Parameter name="onepass.appname" value="ORGIDQA" override="false" />
+  <Parameter name="onepass.version" value="3" override="false" />
+  <Parameter name="onepass.baseuri" value="http://onepassservicesqa.int.westlaw.com/onepass/v3/" override="false" />
+  <Parameter name="onepass.authpath" value="authenticate/signontoken" override="false" />
+  <Parameter name="onepass.apikey" value="de39719ac4b34294842234600b3234e624188a8830a64d1988df7a10a892e984" override="false" />
+  <Parameter name="onepass.apikeysecret" value="8508aa176dd5457eaa5362d452d79598a875c3e7ae024016991bef7331a8f108" override="false" />
+  <Parameter name="onepass.minreq.username.length" value="8" override="false"/>
+  <Parameter name="onepass.minreq.username.groups" value="1" override="false"/>
+  <Parameter name="onepass.minreq.password.length" value="8" override="false"/>
+  <Parameter name="onepass.minreq.password.groups" value="3" override="false"/>
+  <Parameter name="onepass.minreq.password.history" value="6" override="false"/>
+  <Parameter name="onepass.minreq.password.lifetime" value="90" override="false"/>
+  <Parameter name="onepass.minreq.failedLockoutCount" value="5" override="false"/>
+  <!--Database Connection Pools-->
+  <Resource name="jdbc/GT_OPS_SUPPORT" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_OPS_SUPPORT_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_ADMIN" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_ADMIN_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_BUSINESS_ADMIN" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_BUSINESS_ADMIN_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_DBO" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_FACILITATOR" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_FACILITATOR_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_FRONT_OFFICE" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_FRONT_OFFICE_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_GUEST" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_GUEST_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_OFAC" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_OFAC_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_PRINCIPAL" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_PRINCIPAL_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_RESEARCH" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_RESEARCH_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_SECURITY" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_SECURITY_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_SUPPORT" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_SUPPORT_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_BIZ_MGMT" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_BIZ_MGMT_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_KYC_MANAGER" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_KYC_MANAGER_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_MLRO" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_MLRO_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_EC" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_EC_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_EC_ADMIN" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_EC_ADMIN_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_FI_SALES" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_FI_SALES_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+  <Resource name="jdbc/GT_FI_OPS" auth="Container"
+    type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
+    url="jdbc:oracle:thin:@(DESCRIPTION=(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=grc-scan-qd0264.int.thomsonreuters.com)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orq685a.int.thomsonreuters.com)))"
+    username="GT_FI_OPS_USER" password="fC8b6YHVEcq" maxActive="20" maxIdle="10"
+    maxWait="-1" defaultAutoCommit="false"/>
+<Context/>

@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<groups>
+<group name ="QA">
+	<name>QA </name>
+	<server>
+		<IP>10.52.163.4</IP>
+		<name>C098JVPKCAPP</name>
+		<apps> 
+			<app>4</app>
+			<app>2</app>
+			<app>3</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.54.11.31</IP>
+		<name>C10JVPKWEB</name>
+		<apps>
+			<app>4</app>
+			<app>1</app>
+			<app>5</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.54.154.9</IP>
+		<name>C99976VPKSCH</name>
+		<apps>
+			<app>4</app>
+			<app>3</app>
+			<app>1</app>
+		</apps>
+	</server>	
+</group>
+<group name ="IUAT">
+	<name>IUAT</name>
+	<server>
+		<IP>10.52.156.55</IP>
+		<name>C851HRNKYCAPP</name>
+		<apps> 
+			<app>4</app>
+			<app>1</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.52.156.56</IP>
+		<name>C938VTYKYCAPP</name>
+		<apps> 
+			<app>4</app>
+			<app>1</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.52.156.50</IP>
+		<name>C343SYAKYCATH</name>
+		<apps> 
+			<app>4</app>
+			<app>1</app>
+		</apps>
+	</server>
+	<server>
+		<IP>10.52.156.49</IP>
+		<name>C396DYHKYCWEB</name>
+		<apps> 
+			<app>3</app>
+		</apps>
+	</server>		
+	<server>
+		<IP>10.52.156.52</IP>
+		<name>C229NFZRTSLWS</name>
+		<apps>
+			<app>2</app>
+			<app>5</app>
+		</apps>
+	</server>	
+ </group>
+</groups>
