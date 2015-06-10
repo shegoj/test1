@@ -1,0 +1,487 @@
+#!/bin/ksh 
+################################################################################
+# This script issues an analyze statistics.
+# Change History:
+# 09/30/04 Isabel Cui create the script
+# 03/17/05 Isabel Cui modified the script for multiple databases on a server analyze_stats 
+# 04/20/05 Dave Baar  modified the script to properly set the ORACLE_SID, and to parse the command line arguments
+# 05/18/05 Jeff H     modified script
+#                       use table stats instead of schema stats
+#                       run stats on CONTENT,META_CONTENT,and MM_CONTENT every run
+#                       run stats on COMPRESSION only once then ignore on subsequent runs
+#                       use get_first_instance to take advantage of RAC 
+#                       parallelism set to 1 to avoid a DataGuard bug
+# 05/23/05 Dave B     Modified logic to process get_instance_list when [ -z $SIDIN ]
+#
+# 11/28/2005 LCB-     Added code to set cursor sharing to exact per suggestion from 
+#			Oracle support to resolve ORA-0600 errors
+# 02/26/2006 JMH      Restricted running stats to non-temporary tables
+# 06/26/2006 JMH      Added specialized NIMS stats gathering
+#                     Added special processing for SESSION_TOCHITS GTTs
+# 06/29/2006 LJK      Added exclusion of PERFMART tables C_DETAIL and N_DETAIL
+# 08/22/2006 LJK      Added specialized rule for PERFSTAT table STATISTICS
+#                     Lowered estimation percentage on NIMS tables NIMS_PAYLOAD and FLAT_SIDE_TAB
+# 05/14/2007 JMH      Changed estimation percentage for DOC/TOC to 10%
+# 05/31/2007 JMH      Increased parallelism for DOC/TOC from 1 to 2
+# 03/07/2008 JMH      Only tables with 10% data change, no stats for 7 days, or no stats will
+#                      will have stats gathered
+# 05/05/2008 AKH      To work "last_analyzed < sysdate - 7", I have added Left Outer join: return all rows 
+#                     from dba_tables together with any matching rows from dba_tab_modification
+# 05/27/2008 AKH      Added special processing USER_TABLE_LIST for Oracle 10.1.0.3 on AIX 
+# 04/27/2009 AKH      Added exclusion of new 10.2 sys owners from USER_TABLE_LIST 
+#                     Fix - Add exclude temporary tables to the 2nd clause for USER_TABLE_LIST 
+# 06/16/2009 DMG      Add clause for table CMS_CONTENT (csloc and metadoc) to turn off histograms
+# 08/05/2009 DMG      Take histograms off of RELATIONSHIP table
+# 10/07/2009 JMH      Remove auto sample for CMS_MULTIPLE table
+# 12/21/2009 DMG      Remove calls to oraenv, using csid function instead
+# 03/29/2010 DMG      Take histograms off of NODE table
+# 04/07/2010 DMG      replace /dba with $DBA
+# 06/09/2010 JMH      Added support for DOCLOCATOR (DOCLOC) tables
+# 08/05/2010 RK       Corrected a typo - line 132: cascase to cascade
+# 09/20/2010 JMH      Changed default sample from auto to 10
+# 11/12/2010 JMH      Added rule for PERSIST to remove histograms
+# 01/03/2011 DMG      Limit number of tables to analyze to 2750.  Script barfs if there are more than that.  
+# 02/02/2011 DMG      Update USAGE statement. Move get_maintmode into mainline code. Cosmetic changes for code readability.
+#                     Remove '-s' from sqlplus in RUN_SQL_JOB so we get better output for table-level stats gathering. 
+#                     Implement basic error checking. Changes to default clause for table-level stats: degree=4, 
+#                     method_opt=FOR ALL COLUMNS SIZE 1, granularity='ALL' and no_invalidate=FALSE. 
+#                     Add DBMS_STATS.GATHER_DICTIONARY_STATS to table-level stats for SYS and SYSTEM stats.  
+#                     Implement new '-d' argument for database level stats; new function GATHER_DB_STATS. 
+# 02/24/2011 DMG      Bug fix to PERSIST rule.  Exclude XDB schema. 
+# 12/29/2011 JRB      Added new OUTPUTDIR variable and the script will now create OUTPUTDIR if it is missing
+# 01/24/2012 JRB      Added code to exit if there is already an analyze_stats script running
+# 04/18/2012 DMG      Exclude SQLTXPLAIN schema. Omit ORA-00054 and ORA-06512 from error reporting.
+#                      (ORA-00054 = resource busy and acquire with NOWAIT specified or timeout expired)
+#                      (ORA-06512 = at \"SYS.DBMS_STATS\", line XXXXX)
+# 06/02/2012 DMG      Add new DBMODEs for streams and goldengt
+# 11/03/2012 DMG      Change default METHOD_OPT from FOR ALL COLUMNS SIZE 1 to FOR ALL COLUMNS SIZE REPEAT
+# 01/25/2013 DMG      Change default for NO_INVALIDATE from FALSE to DBMS_STATS.AUTO_INVALIDATE
+# 01/15/2014 DMG      Simplify messaging
+# 06/05/2014 DMG      Force Database level stats gathering for all 12c databases, disallow table stats
+# 11/04/2014 DMG      Change ESTIMATE_PERCENT to DBMS_STATS.AUTO_SAMPLE_SIZE in 12c
+# 11/19/2014 DMG      Add monthly GATHER_FIXED_OBJECTS_STATS for 12c
+#                     Loop through all PDBs if container database = true
+# 01/14/2015 DMG      Add ENV_CD to mail subject
+# 02/25/2015 DMG      Omit ORA-20005 and ORA-25191 from error reporting. (eliminate noise email)
+#                      (ORA-20005 = object statistics are locked)
+#                      (ORA-25191 = cannot reference overflow table of an index-organized table)
+################################################################################
+
+function USAGE
+{
+  echo ""
+  echo "*** USAGE ***"
+  echo "analyze_stats [ -a | -i <SID> ] [ -t | -d ] [ -? ]"
+  echo "  -a         runs for All instances on the server"
+  echo "  -i <SID>   runs for specific Instance"
+  echo "  -t         runs using dbms_stats.gather_Table_stats (default)"
+  echo "  -d         runs using dbms_stats.gather_Database_stats"
+  echo "  -?         displays usage information"
+  echo ""
+}
+
+########################
+#
+# Function FIND_ALL_TABLES
+#   Locates all tables not owned by Oracle users (like SYS,SYSTEM,DBSNMP...)
+#
+#   Resulting owner.table list is stored in USER_TABLE_LIST variable
+#   Alternative owner list of all TOC Global Temporary Tables (SESSION_TOCHITS)
+#     with gathered statistics (non-NULL LAST_ANALYZED field) is stored in TOCHITS_TABLE_LIST
+#
+########################
+function FIND_ALL_TABLES
+{
+THIS_OS=`uname`
+if [[ $THIS_OS = "AIX" ]]; then
+  export USER_TABLE_LIST=`sqlplus -s "/ as sysdba" <<SQL
+set echo off feed off head off pagesize 0 line 125
+alter session set nls_date_format='YYYY-MM-DD-HH24:MI';
+select owner||'.'||table_name||' '||last_analyzed from dba_tables where owner not in ('SYSTEM','SYS','OUTLN','DBSNMP','MDSYS','ORDSYS','ANONYMOUS','ORDPLUGINS','WMSYS','EXFSYS','TSMSYS') and temporary !='Y' order by owner;
+SQL`
+else
+  export USER_TABLE_LIST=`sqlplus -s "/ as sysdba" <<SQL
+set echo off feed off head off pagesize 0 line 125
+alter session set nls_date_format='YYYY-MM-DD-HH24:MI';
+select owner||'.'||table_name||' '||last_analyzed from (select a.*, ROUND(NVL(DECODE(num_rows, 0, '-1', (total_changes / num_rows)*100), -1)) percentage_changes from (select num_rows,owner,last_analyzed,tab.table_name,(inserts + updates + deletes) total_changes from dba_tables tab LEFT OUTER JOIN dba_tab_modifications mod ON (tab.table_name = mod.table_name AND tab.owner = mod.table_owner) where owner not in ('SYSTEM','SYS','OUTLN','DBSNMP','MDSYS','ORDSYS','ANONYMOUS','ORDPLUGINS','WMSYS','EXFSYS','TSMSYS','XDB','SQLTXPLAIN') and temporary !='Y' and partitioned = 'NO' and tab.table_name not in (select table_name from DBA_EXTERNAL_TABLES)) a) b where ( percentage_changes > 10 or last_analyzed < sysdate - 7 or last_analyzed is null) and rownum < 2400 order by owner;
+SQL`
+fi
+  export TOCHITS_TABLE_LIST=`sqlplus -s "/ as sysdba" <<SQL
+set echo off feed off head off pagesize 0
+select owner from dba_tables where table_name='SESSION_TOCHITS' and temporary='Y' and last_analyzed is not null order by owner;
+SQL`
+}
+
+########################
+#
+# Only run GENERATE_SQL_JOB after running FIND_ALL_TABLES
+#
+# Function GENERATE_SQL_JOB
+#   Generates the sqlplus commands to run against this SID (dbms_stats)
+#   The dbms_stats command generated is standard unless a specific rule is written for particular tables
+#
+#   Input is USER_TABLE_LIST from FIND_ALL_TABLES
+#   Output is a .sql file in the $DBA/output/analyze_stats directory
+#
+########################
+function GENERATE_SQL_JOB
+{
+echo "alter session set cursor_sharing=exact;" >> $SQL_JOB_FILE
+if [[ -n $USER_TABLE_LIST ]]; then  
+echo "$USER_TABLE_LIST" | while read TABLE LAST_RUN 
+  do
+    OWNER=`echo $TABLE | awk 'BEGIN {FS="."} {print $1}'`
+    TABLE_NAME=`echo $TABLE | awk 'BEGIN {FS="."} {print $2}'`
+    # Different rules for different tables go here
+    if [[ $TABLE_NAME = "COMPRESSION" ]]; then
+      if [[ -z $LAST_RUN ]]; then
+        echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>100, degree=>1, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+      fi
+    elif [[ $TABLE_NAME = "CONTENT" || $TABLE_NAME = "META_CONTENT" || $TABLE_NAME = "MM_CONTENT" || $TABLE_NAME = "NODE" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>10, degree=>2, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+    elif [[ $TABLE_NAME = "NIMS_PAYLOAD" || $TABLE_NAME = "FLAT_SIDE_TAB" || $TABLE_NAME = "NIMS_DOC_CONTENT" || $TABLE_NAME = "CMS_CONTENT" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>30, degree=>4, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+    elif [[ $TABLE_NAME = "STATISTICS" && $OWNER = "PERFSTAT" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>30, degree=>1, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+    elif [[ $TABLE_NAME = "RELATIONSHIP" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>5, degree=>2, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+    elif [[ $TABLE_NAME = "CMS_MULTIPLE" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>20, degree=>4, cascade=>TRUE );" >> $SQL_JOB_FILE
+    elif [[ $TABLE_NAME = "DOCLOCATOR" || $TABLE_NAME = "PERSIST" ]]; then
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>10, degree=>4, method_opt=>'FOR ALL INDEXED COLUMNS SIZE 1', cascade=>TRUE );" >> $SQL_JOB_FILE
+    else
+      echo "exec DBMS_STATS.GATHER_TABLE_STATS ( ownname=>'$OWNER', tabname=>'$TABLE_NAME', estimate_percent=>10, degree=>4, method_opt=>'FOR ALL COLUMNS SIZE REPEAT', no_invalidate=> DBMS_STATS.AUTO_INVALIDATE, granularity=> 'ALL', cascade=>TRUE );" >> $SQL_JOB_FILE
+    fi
+  done
+fi
+# Special processing for SESSION_TOCHITS Global Temporary Table (TOC)
+if [[ -n $TOCHITS_TABLE_LIST ]]; then
+  echo "$TOCHITS_TABLE_LIST" | while read OWNER
+  do
+    echo "exec DBMS_STATS.DELETE_TABLE_STATS( ownname=>'$OWNER', tabname=>'SESSION_TOCHITS' );" >> $SQL_JOB_FILE
+    echo "exec DBMS_STATS.LOCK_TABLE_STATS( ownname=>'$OWNER', tabname=>'SESSION_TOCHITS' );" >> $SQL_JOB_FILE
+  done
+fi
+}
+
+########################
+# Function RUN_SQL_JOB
+#   Executes the sqlplus commands in the .sql file in the $DBA/output/analyze_stats directory
+#   When finished the file is moved to a file name containing the ORACLE_SID variable and .done
+########################
+function RUN_SQL_JOB
+{
+if [ -f $SQL_JOB_FILE ]; then
+  # if we are going to run, lets gather dictionary stats too
+  echo "exec DBMS_STATS.GATHER_DICTIONARY_STATS;" >> $SQL_JOB_FILE
+  # 
+  echo "Starting dbms_stats on $ORACLE_SID at `date`" > $SQL_JOB_LOG
+  sqlplus "/ as sysdba" <<SQL
+set echo on feed on timing on
+spool $SQL_JOB_LOG append
+@$SQL_JOB_FILE
+spool off
+SQL
+  CHECK_ERRORS
+  mv $SQL_JOB_FILE $OUTPUTDIR/analyze_stats_${ORACLE_SID}_$STAMP.done
+  mv $SQL_JOB_LOG $OUTPUTDIR/analyze_stats_${ORACLE_SID}_$STAMP.log
+else
+  echo "ERROR 101: $SQL_JOB_FILE does not exist"
+  exit 101
+fi
+}
+
+########################
+# Function FLUSH_CHANGES
+#   This procedure flushes in-memory monitoring information for all tables in the
+#   dictionary. Corresponding entries in the *_TAB_MODIFICATIONS, *_TAB_STATISTICS
+#   and *_IND_STATISTICS views are updated
+########################
+function FLUSH_CHANGES
+{
+  sqlplus -s "/ as sysdba" <<SQL
+exec dbms_stats.flush_database_monitoring_info;
+SQL
+}
+
+########################
+#
+# Function CHECK_ERRORS
+#  Checks for ORA errors in the log output and emails if there are errors
+#  This function is called by function RUN_SQL_JOB and GATHER_DB_STATS 
+#
+########################
+function CHECK_ERRORS
+{
+cat $SQL_JOB_LOG | grep "ORA-" | egrep -v "ORA-00054|ORA-06512|ORA-20005|ORA-25191" >> $SQL_JOB_ERRORS
+integer ERROR_COUNT=`wc -l < $SQL_JOB_ERRORS`
+if [ $ERROR_COUNT -ge 1 ]; then
+  echo "Finished dbms_stats on $ORACLE_SID at `date` with errors" >> $SQL_JOB_LOG
+  export NOTIFY_MESSAGE=$SQL_JOB_ERRORS
+  export MAIL_SUBJECT="$ENV_CD alert from $SCRIPT on $HOSTN"
+  SET_MAILUSERNM
+  export pageusernm=""
+  TELALERT
+  rm $SQL_JOB_ERRORS
+else
+  echo "Finished dbms_stats on $ORACLE_SID at `date`" >> $SQL_JOB_LOG
+  rm $SQL_JOB_ERRORS
+fi
+}
+
+########################
+#
+# Function GATHER_DB_STATS
+#  Gathers stats using dbms_stats.gather_database_stats commands
+#
+########################
+function GATHER_DB_STATS
+{
+check_CDB $ORACLE_SID
+if [[ $CHECK_CDB = "TRUE" ]]; then
+  PDBS=`$ORACLE_HOME/bin/sqlplus -s <<SQL
+  / as sysdba
+  whenever sqlerror exit 1
+  set echo off feed off head off pagesize 0
+  alter session set container=cdb\\$root;
+  select lower(name) from v\\$containers where name != 'PDB\\$SEED';
+SQL`
+  if [[ $? = 0 ]]; then 
+    for THIS_PDB in $PDBS
+    do
+      DTLASTFIXEDOBJCOLLECTION=`sqlplus -s "/ as sysdba" <<SQL
+      whenever sqlerror exit 1
+      set echo off head off feed off pagesize 0
+      alter session set container=$THIS_PDB;
+      select rtrim(to_date(sysdate) - to_date(max(LAST_ANALYZED))) from dba_tab_statistics WHERE OBJECT_TYPE='FIXED TABLE';
+SQL`
+      if [[ $? = 0 ]]; then
+        if [[ $DTLASTFIXEDOBJCOLLECTION -gt 30 ]]; then
+          #FIXEDOBJCOLLECTION="exec DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;"
+          # add trace event and shared pool flush per SR 3-9957231721 until patch is released
+          FIXEDOBJCOLLECTION="alter session set events '10119 trace name context forever';"$'\n'"alter system flush shared_pool;"$'\n'"exec DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;"
+        else
+          FIXEDOBJCOLLECTION="--fixed object stats were gathered $DTLASTFIXEDOBJCOLLECTION days ago, skipping ..."
+        fi
+      else 
+        FIXEDOBJCOLLECTION=""
+      fi
+      echo "alter session set container=$THIS_PDB;" >> $SQL_JOB_FILE
+      echo "alter session set cursor_sharing=exact;" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('METHOD_OPT','FOR ALL COLUMNS SIZE REPEAT');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('ESTIMATE_PERCENT','DBMS_STATS.AUTO_SAMPLE_SIZE');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('DEGREE',4);" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('NO_INVALIDATE','DBMS_STATS.AUTO_INVALIDATE');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('GRANULARITY','ALL');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.SET_GLOBAL_PREFS('CASCADE','TRUE');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.GATHER_DATABASE_STATS(gather_sys=>TRUE, options=>'GATHER STALE');" >> $SQL_JOB_FILE
+      echo "exec DBMS_STATS.GATHER_DATABASE_STATS(gather_sys=>TRUE, options=>'GATHER EMPTY');" >> $SQL_JOB_FILE
+      echo "$FIXEDOBJCOLLECTION" >> $SQL_JOB_FILE
+    done
+  else 
+    echo "ERROR unable to determine PDBs for $ORACLE_SID" >> $SQL_JOB_ERRORS
+  fi
+else 
+  if [[ $ORACLE_MAINTENANCE_RELEASE = "12.1" ]]; then
+    SAMPLESZ="'DBMS_STATS.AUTO_SAMPLE_SIZE'"
+    DTLASTFIXEDOBJCOLLECTION=`sqlplus -s "/ as sysdba" <<SQL
+    whenever sqlerror exit 1
+    set echo off head off feed off pagesize 0
+    select rtrim(to_date(sysdate) - to_date(max(LAST_ANALYZED))) from dba_tab_statistics WHERE OBJECT_TYPE='FIXED TABLE';
+SQL`
+    if [[ $? = 0 ]]; then
+      if [[ $DTLASTFIXEDOBJCOLLECTION -gt 30 ]]; then
+        #FIXEDOBJCOLLECTION="exec DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;"
+        # add trace event and shared pool flush per SR 3-9957231721 until patch is released
+        FIXEDOBJCOLLECTION="alter session set events '10119 trace name context forever';"$'\n'"alter system flush shared_pool;"$'\n'"exec DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;"
+      else
+        FIXEDOBJCOLLECTION="--fixed object stats were gathered $DTLASTFIXEDOBJCOLLECTION days ago, skipping ..."
+      fi
+    else
+      FIXEDOBJCOLLECTION=""
+    fi
+  else
+    SAMPLESZ="10"
+    FIXEDOBJCOLLECTION=""
+  fi
+  echo "alter session set cursor_sharing=exact;" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('METHOD_OPT','FOR ALL COLUMNS SIZE REPEAT');" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('ESTIMATE_PERCENT',$SAMPLESZ);" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('DEGREE',4);" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('NO_INVALIDATE','DBMS_STATS.AUTO_INVALIDATE');" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('GRANULARITY','ALL');" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.SET_GLOBAL_PREFS('CASCADE','TRUE');" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.GATHER_DATABASE_STATS(gather_sys=>TRUE, options=>'GATHER STALE');" >> $SQL_JOB_FILE
+  echo "exec DBMS_STATS.GATHER_DATABASE_STATS(gather_sys=>TRUE, options=>'GATHER EMPTY');" >> $SQL_JOB_FILE
+  echo "$FIXEDOBJCOLLECTION" >> $SQL_JOB_FILE
+fi
+
+echo "Starting dbms_stats on $ORACLE_SID at `date`" > $SQL_JOB_LOG
+sqlplus "/ as sysdba" <<SQL
+set echo on feed on timing on
+spool $SQL_JOB_LOG append
+@$SQL_JOB_FILE
+spool off
+SQL
+CHECK_ERRORS
+mv $SQL_JOB_FILE $OUTPUTDIR/analyze_stats_${ORACLE_SID}_$STAMP.done
+mv $SQL_JOB_LOG $OUTPUTDIR/analyze_stats_${ORACLE_SID}_$STAMP.log
+}
+
+################################################################################
+#
+# Mainline Code
+#
+################################################################################
+if [ -f ~/.bash_profile ]; then
+  . ~/.bash_profile
+else
+  . ~/.profile
+fi
+
+. $DBA/bin/ora_standard_functions
+
+# Set up global variables and default values
+
+ALLSIDS=NO
+STAMP=`date +%Y%m%d%H%M%S`
+OUTPUTDIR=$DBA/output/analyze_stats
+SQL_JOB_FILE=$OUTPUTDIR/analyze_stats_$STAMP.sql
+SQL_JOB_LOG=$OUTPUTDIR/analyze_stats_$STAMP.log
+SQL_JOB_ERRORS=$OUTPUTDIR/analyze_stats_$STAMP.err
+TABSTATS=FALSE
+DBSTATS=FALSE
+HOSTN=`hostname`
+SCRIPT=analyze_stats
+
+if [[ $ENV_CD = "prod" ]]; then
+  ENV_CD=PROD
+fi
+
+################################################################################
+#  code to exit script if there is already an analyze_stats script running
+################################################################################
+a=`ps -ef |grep 'ksh /dba/bin/analyze_stats '|grep -v grep|wc`
+b=`echo $a | $AWK 'BEGIN {FS=" "} {print $1}'`
+if [ "$b" -gt 1 ]; then
+  echo "Error: analyze_stats is currently running, will exit this run"  >> $SQL_JOB_LOG
+  CHECK_ERRORS
+  exit 99
+fi
+
+################################################################################
+#  check for output directory, create it if missing
+################################################################################
+if [ ! -d $OUTPUTDIR ]; then
+  mkdir -p $OUTPUTDIR
+fi
+
+if [[ $1 = "?" || $1 = "-?" ]]; then
+  USAGE
+  exit 5
+fi
+
+get_maintmode
+if [[ $MAINTMODE = TRUE ]]; then
+  echo "This server is in maintenance mode"
+  echo "Exiting..."
+  exit 3
+fi
+
+while getopts ai:td opt
+do
+  case $opt in
+  a)      ALLSIDS=YES
+          SIDIN=;;
+  i)      SIDIN=$OPTARG
+          ALLSIDS=NO;;
+  t)      TABSTATS=TRUE;;
+  d)      DBSTATS=TRUE;;
+  \?)     USAGE
+          exit 1;;
+  esac
+done
+
+if [ "$TABSTATS" = "FALSE" -a "$DBSTATS" = "FALSE" ]; then
+  echo "WARNING.. Neither -t or -d was specified.  Running with -t option (table-level stats)"
+  TABSTATS=TRUE
+fi
+
+if [ "$TABSTATS" = "TRUE" -a "$DBSTATS" = "TRUE" ]; then
+  echo "ERROR.. Need to enter either option -t or -d, not both"
+  USAGE
+  exit 07
+fi
+
+get_oracle_maintenance_release
+if [[ $ORACLE_MAINTENANCE_RELEASE = "12.1" ]]; then
+  # Force Database level stats gathering for all 12c databases, disallow table stats
+  TABSTATS=FALSE
+  DBSTATS=TRUE
+fi
+
+get_instance_list
+if [[ ! -z $SIDIN ]]; then
+  echo "$ORAINSTLIST" | grep -i $SIDIN > /dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "$SIDIN not found on this host"
+    exit 3
+  fi
+fi
+
+if [ "$ALLSIDS" = "YES" ]; then
+  for DB in $ORAINSTLIST
+  do
+    export ORACLE_SID=$DB
+    csid $DB
+    # Check if stats should run on this node type
+    get_dbmode $DB
+    if [[ "$DBMODE" = "primary" || "$DBMODE" = "standby" || "$DBMODE" = "secondary" || "$DBMODE" = "streams" || "$DBMODE" = "goldengt" ]]; then
+      get_dbname_from_SID $DB
+      get_first_instance $DBNAME
+      if [[ $FIRST_HOST = `hostname` ]]; then
+        echo "dbms_stats executing on $ORACLE_SID"
+        if [[ "$TABSTATS" = "TRUE" ]]; then
+          FLUSH_CHANGES
+          FIND_ALL_TABLES
+          GENERATE_SQL_JOB
+          RUN_SQL_JOB
+        elif [[ "$DBSTATS" = "TRUE" ]]; then
+          GATHER_DB_STATS
+        fi
+      else
+        echo "analyze_stats will run on $FIRST_HOST, not `hostname` for $DBNAME"
+      fi
+    else
+      echo "analyze_stats for $DBNAME is not valid for this DBMODE ($DBMODE)"
+    fi
+  done
+else
+  DB=$SIDIN
+  export ORACLE_SID=$DB
+  csid $DB
+  # Check if stats should run on this node type
+  get_dbmode $DB
+  if [[ "$DBMODE" = "primary" || "$DBMODE" = "standby" || "$DBMODE" = "secondary" || "$DBMODE" = "streams" || "$DBMODE" = "goldengt" ]]; then
+    get_dbname_from_SID $DB
+    get_first_instance $DBNAME
+    if [[ $FIRST_HOST = `hostname` ]]; then
+      echo "dbms_stats executing on $ORACLE_SID"
+      if [[ "$TABSTATS" = "TRUE" ]]; then
+        FLUSH_CHANGES
+        FIND_ALL_TABLES
+        GENERATE_SQL_JOB
+        RUN_SQL_JOB
+      elif [[ "$DBSTATS" = "TRUE" ]]; then
+        GATHER_DB_STATS
+      fi
+    else
+      echo "analyze_stats will run on $FIRST_HOST, not `hostname` for $DBNAME"
+    fi
+  else
+    echo "analyze_stats for $DBNAME is not valid for this DBMODE ($DBMODE)"
+  fi
+fi
+
+# End of script
+
